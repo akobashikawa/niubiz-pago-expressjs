@@ -1,7 +1,11 @@
 const express = require('express');
+var cors = require('cors');
 const app = express();
 const axios = require('axios');
 const config = require('./config');
+
+// Enable All CORS Request
+app.use(cors());
 
 // json request support
 app.use(express.json());
