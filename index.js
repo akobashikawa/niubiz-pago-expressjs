@@ -4,6 +4,8 @@ const app = express();
 const axios = require('axios');
 const config = require('./config');
 
+app.use(express.static('public'));
+
 // Enable All CORS Request
 app.use(cors());
 
@@ -11,33 +13,20 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-const PORT = config.port || 4000;
-const CULQI_SK = config.culqiSk;
+const PORT = config.port || 4200;
 
-app.get("/", (req, res) => {
-    res.send('Culqi Demo');
+app.get("/api", (req, res) => {
+    res.send('Niubiz Demo');
 });
 
-app.post("/charge", async (req, res) => {
-    const data = req.body;
-    const url = `https://api.culqi.com/v2/charges`;
-    const headers = {
-        Accept: "application/json, text/plain, */*",
-        "Content-Type": "application/json; charset=UTF-8",
-        Authorization: `Bearer ${CULQI_SK}`
-    };
-    try {
-        data.metadata.extra = 'metadata desde el server';
-        const response = await axios.post(url, data, {headers});
-        console.log(response.data);
-        res.send(response.data);
-    } catch (error) {
-        console.log(error);
-        res.send(error.response.data);
-    }
+app.all("/api/response", async (req, res) => {
+    const query = req.query;
+    const body = req.body;
+    console.log(query, body);
+    res.json({query, body});
 });
 
-app.post("/webhook", (req, res) => {
+app.post("/api/webhook", (req, res) => {
     console.log(req.body);
     res.send('OK');
 });

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pago Niubiz</title>
+</head>
+
+<body>
+    <div>
+        <h1>Pago Niubiz</h1>
+
+        <!-- <input type="text" placeholder="Código del comercio" id="input_merchantid" value="341198210"> -->
+        <input type="text" placeholder="Código del comercio" id="input_merchantid" value="456879852">
+        <input type="text" placeholder="Orden de compra" id="input_purchasenumber" value="2020100901">
+        <input type="number" placeholder="Monto S/" id="input_amount">
+
+        <button id="btn_pagar">Pagar con Niubiz</button>
+    </div>
+
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://static-content-qas.vnforapps.com/v2/js/checkout.js?qa=true"></script>
+    
+    <script>
+        // Documentación: [Web payment/payment button](https://desarrolladores.niubiz.com.pe/docs/bot%C3%B3n-de-pago-1)
+
+        // CONST
+        ////////
+
+        
+        // LIB
+        //////
+
+        const getAccessToken = async (authorization) => {
+            try {
+                const headers = {
+                    "Authorization": `Basic ${authorization}`
+                };
+
+                const result = await axios.get('https://apisandbox.vnforappstest.com/api.security/v1/security', {headers});
+                // 201
+                console.log(result);
+                accessToken = result.data;
+                console.log('accessToken', accessToken);
+                return accessToken;
+            } catch (error) {
+                // 401
+                console.log(error);
+            }
+        };
+
+        const getSession = async (merchantId, accessToken) => {
+            const body = {
+                "channel": 'web', // default
+                // "amount": `${amount}`,
+                // "anti-fraud": {
+                //     "merchantDefineData": {
+                //         "MDD15": "Valor MDD 15",
+                //         "MDD20": "Valor MDD 20",
+                //         "MDD33": "Valor MDD 33"
+                //     }
+                // },
+            };
+
+            let data;
+            let expirationTime, sessionKey;
+
+            try {
+                const headers = {
+                    "Content-Type": 'application/json',
+                    "Authorization": accessToken
+                };
+
+                const result = await axios.post(`https://apisandbox.vnforappstest.com/api.ecommerce/v2/ecommerce/token/session/${merchantId}`, body, {headers});
+                // 200
+                console.log(result);
+                data = result.data;
+                console.log(data);
+                expirationTime = data.expirationTime;
+                sessionKey = data.sessionKey;
+
+                let session = {sessionKey, expirationTime};
+                return session;
+            } catch (error) {
+                // 400, 406
+                console.log(error);
+            }
+        };
+
+        const openForm = (merchantId, sessionKey, expirationTime, amount, purchasenumber) => {
+            const expirationminutes = Math.round( ( new Date(expirationTime) - new Date().getTime() ) / 1000 / 60);
+            console.log('expirationminutes', expirationminutes);
+
+            VisanetCheckout.configure({
+                sessiontoken: sessionKey,
+                channel:'web',
+                merchantid: merchantId,
+                purchasenumber: purchasenumber,
+                amount: `${amount}`,
+                expirationminutes: `${expirationminutes}`,
+                timeouturl: 'https://rulokoba.me/niubiz-demo/response',
+                merchantlogo:' img/comercio.png',
+                formbuttoncolor:'#000000',
+                action:'https://rulokoba.me/niubiz-demo/response',
+                complete: function(params) {
+                    alert(JSON.stringify(params));
+                }
+            });
+            VisanetCheckout.open();
+        };
+
+        
+
+        // MAIN
+        ///////
+
+        main = async () => {
+            // 1. Create an access token (Security)
+           
+            // let authorization = 'aW50ZWdyYWNpb25lc0BuaXViaXouY29tLnBlOl83ejNAOGZG';
+            let authorization = 'Z2lhbmNhZ2FsbGFyZG9AZ21haWwuY29tOkF2MyR0cnV6';
+            let accessToken = await getAccessToken();
+
+            // 2. Create a session token
+            
+            // let merchantId = '341198210';
+            let merchantId = '456879852';
+            let amount = 12.3;
+            let session = await getSession(merchantId, accessToken, amount);
+
+            // 3. Configure the web payment button
+
+            let sessionKey = session.sessionKey;
+            let expirationTime = session.expirationTime;
+            let purchasenumber = '2020100901';
+
+            openForm(merchantId, sessionKey, expirationTime, amount, purchasenumber);
+
+            // Resquest recibido en pare response
+            // {"query":{},"body":{"transactionToken":"1F62A94A553242CFA2A94A5532F2CF6E","customerEmail":"akobashikawa@gmail.com","channel":"web"}}
+
+            // 4. Request transaction authorization
+
+
+        };
+
+        // main();
+
+        
+        const btn_pagar = document.getElementById('btn_pagar');
+
+        btn_pagar.addEventListener('click', async (e) => {
+
+            // 1. Create an access token (Security)
+           
+            let authorization = 'Z2lhbmNhZ2FsbGFyZG9AZ21haWwuY29tOkF2MyR0cnV6';
+            let accessToken = await getAccessToken(authorization);
+
+            // 2. Create a session token
+            
+            let merchantId = document.getElementById('input_merchantid').value;
+            let amount = document.getElementById('input_amount').value;
+            let session = await getSession(merchantId, accessToken, amount);
+
+            // 3. Configure the web payment button
+
+            let sessionKey = session.sessionKey;
+            let expirationTime = session.expirationTime;
+            let purchasenumber = document.getElementById('input_purchasenumber').value;
+
+            openForm(merchantId, sessionKey, expirationTime, amount, purchasenumber);
+            
+
+            // data arbitraria que culqi incorporará tal cual
+            const metadata = {
+                correlativo: 123,
+                nombre: 'Ana Aragón'
+            };
+
+            // abrir el formulario de pago
+
+            e.preventDefault();
+        });
+
+
+    </script>
+</body>
+
+</html>

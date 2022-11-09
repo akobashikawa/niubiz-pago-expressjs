@@ -1,7 +1,7 @@
-# Culqi Pago
+# Niubiz Pago
 
-Simple web service para hacer pago con Culqi.
+Simple web service para hacer pago con Niubiz.
 
 ## Frontend
 
-Ver: https://github.com/akobashikawa/culqi-pago
+Ver: https://github.com/akobashikawa/niubiz-pago
