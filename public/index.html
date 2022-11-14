@@ -16,90 +16,130 @@
     <div class="container">
         <h1>Pago con Niubiz</h1>
 
-        <label for="input_authorization">authorization</label>
-        <input class="form-control" placeholder="Código del comercio" id="input_authorization">
-        <br>
-        <label for="input_merchantid">merchantid</label>
-        <input class="form-control" type="text" placeholder="Código del comercio" id="input_merchantid">
-        <br>
-        <label for="input_purchasenumber">purchasenumber</label>
-        <input class="form-control" type="text" placeholder="Orden de compra" id="input_purchasenumber">
-        <br>
-        <label for="input_amount">amount</label>
-        <input class="form-control" type="number" placeholder="Monto S/" id="input_amount">
-        <br>
-        <button class="btn btn-primary" id="btn_pagar">Pagar con Niubiz</button>
+        <div>
+            <label for="input_usuarioid">usuarioId</label>
+            <input class="form-control" placeholder="ID del usuario" id="input_usuarioid" value="usuario1">
+        </div>
+
+        <div class="card-group mt-4" id="list_productos">
+            <div class="card w-25">
+                <div class="card-body">
+                    <h5 class="card-title">Producto</h5>
+                    <p class="card-text">Precio: ...</p>
+                    <button class="btn btn-secondary">Pagar</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     <script src="https://static-content-qas.vnforapps.com/v2/js/checkout.js?qa=true"></script>
     
     <script>
-        // Documentación: [Web payment/payment button](https://desarrolladores.niubiz.com.pe/docs/bot%C3%B3n-de-pago-1)
 
         // CONST
         ////////
         const BACKEND_BASE_URL = 'https://rulokoba.me/demo-4200';
 
-        // const AUTHORIZATION = 'aW50ZWdyYWNpb25lc0BuaXViaXouY29tLnBlOl83ejNAOGZG';
-        const AUTHORIZATION = 'Z2lhbmNhZ2FsbGFyZG9AZ21haWwuY29tOkF2MyR0cnV6';
-        // const MERCHANTID = '341198210';
-        const MERCHANTID = '456879852';
-        const PURCHASENUMBER = generatePurchaseNumber();
-        const AMOUNT = 12.3;
-
-        function xx(n) {
-            return (n < 10) ? ('0' + n) : n;
-        }
-
-        function generatePurchaseNumber() {
-            const now = new Date();
-            const yyyy = now.getFullYear();
-            const MM = xx(now.getMonth() + 1);
-            const dd = xx(now.getDate());
-            const hh = xx(now.getHours());
-            const mm = xx(now.getMinutes());
-            const ss = xx(now.getSeconds());
-            return `AK-12345678-${yyyy}${MM}${dd}${hh}${mm}${ss}`;
-        }
-
-        
-        // LIB
-        //////
-
-        const getAccessToken = async (authorization) => {
+        const getProductos = async () => {
             try {
-                const headers = {
-                    "Authorization": `Basic ${authorization}`
-                };
+                const result = await axios.get(`${BACKEND_BASE_URL}/api/productos`);
+                const productos = result.data;
+                console.log(productos);
 
-                const result = await axios.get('https://apisandbox.vnforappstest.com/api.security/v1/security', {headers});
+                const productosList = document.getElementById('list_productos');
+                let html = '';
+                for (let producto of productos) {
+                    html += `
+<div class="card w-25">
+    <div class="card-body">
+        <h5 class="card-title">${producto.nombre}</h5>
+        <p class="card-text">Precio: ${producto.amount} ${producto.currency}</p>
+        <button class="btn btn-primary" onclick="pagaProducto('${producto.id}')">Pagar</button>
+    </div>
+</div>`;
+                }
+                productosList.innerHTML = html;
+            } catch (error) {
+                console.log(error);
+            }
+        };
+
+        getProductos();
+
+        const getUsuarioId = () => {
+            const usuarioId = document.getElementById('input_usuarioid').value;
+            return usuarioId;
+        };
+
+        const openForm = ({merchantid, sessiontoken, expirationminutes, amount, purchasenumber}) => {
+            // const expirationminutes = Math.round( ( new Date(expirationTime) - new Date().getTime() ) / 1000 / 60);
+            // console.log('expirationminutes', expirationminutes);
+
+            VisanetCheckout.configure({
+                // requeridos
+                action: `${BACKEND_BASE_URL}/api/pagos-autorizar?purchasenumber=${purchasenumber}`,
+                merchantid,
+                sessiontoken,
+                amount,
+                purchasenumber,
+
+                channel:'web',
+                expirationminutes: `${expirationminutes}`,
+                timeouturl: `${BACKEND_BASE_URL}/api/pagos-autorizar`,
+                merchantlogo:' img/comercio.png',
+                formbuttoncolor:'#000000',
+
+                complete: function(params) {
+                    console.log(params);
+                    alert(JSON.stringify(params));
+                }
+            });
+            VisanetCheckout.open();
+        };
+
+        const pagaProducto = async (productoId) => {
+            const usuarioId = getUsuarioId();
+            const pagoData = {
+                productoId,
+                usuarioId,
+            };
+            console.log(`Pagar producto: ${pagoData.productoId} por  ${pagoData.usuarioId}`);
+
+            try {
+                const result = await axios.post(`${BACKEND_BASE_URL}/api/pagos`, pagoData);
                 // 201
                 console.log(result);
-                accessToken = result.data;
-                console.log('accessToken', accessToken);
-                return accessToken;
+                openFormData = result.data;
+                console.log('openFormData', openFormData);
+                
+                openForm(openFormData);
+
             } catch (error) {
                 // 401
                 console.log(error);
             }
         };
 
-        const getSession = async (merchantId, accessToken, amount) => {
+        
+
+        
+        const payAuthorization = async (merchantId, tokenId, purchaseNumber, amount) => {
+            const currency = "PEN";
+
             const body = {
                 "channel": 'web', // default
+                "captureType": 'manual', // siempre
                 "amount": `${amount}`,
-                // "anti-fraud": {
-                //     "merchantDefineData": {
-                //         "MDD15": "Valor MDD 15",
-                //         "MDD20": "Valor MDD 20",
-                //         "MDD33": "Valor MDD 33"
-                //     }
-                // },
+                "currency": `${currency}`,
+                "order" : {
+                    "tokenId": tokenId,
+                    "purchaseNumber": purchaseNumber,
+                }
             };
 
             let data;
-            let expirationTime, sessionKey;
 
             try {
                 const headers = {
@@ -107,110 +147,18 @@
                     "Authorization": accessToken
                 };
 
-                const result = await axios.post(`https://apisandbox.vnforappstest.com/api.ecommerce/v2/ecommerce/token/session/${merchantId}`, body, {headers});
+                const result = await axios.post(`https://apisandbox.vnforappstest.com/api.authorization/v3/authorization/ecommerce/${merchantId}`, body, {headers});
                 // 200
                 console.log(result);
                 data = result.data;
                 console.log(data);
-                expirationTime = data.expirationTime;
-                sessionKey = data.sessionKey;
 
-                let session = {sessionKey, expirationTime};
-                return session;
+                return data;
             } catch (error) {
-                // 400, 406
+                // 400, 401, 406, 500
                 console.log(error);
             }
         };
-
-        const openForm = (merchantId, sessionKey, expirationTime, amount, purchasenumber) => {
-            const expirationminutes = Math.round( ( new Date(expirationTime) - new Date().getTime() ) / 1000 / 60);
-            console.log('expirationminutes', expirationminutes);
-
-            VisanetCheckout.configure({
-                sessiontoken: sessionKey,
-                channel:'web',
-                merchantid: merchantId,
-                purchasenumber: purchasenumber,
-                amount: `${amount}`,
-                expirationminutes: `${expirationminutes}`,
-                timeouturl: `${BACKEND_BASE_URL}/api/response`,
-                merchantlogo:' img/comercio.png',
-                formbuttoncolor:'#000000',
-                action: `${BACKEND_BASE_URL}/api/response`,
-                complete: function(params) {
-                    alert(JSON.stringify(params));
-                }
-            });
-            VisanetCheckout.open();
-        };
-
-        
-
-        // MAIN
-        ///////
-
-        main = async () => {
-            // 1. Create an access token (Security)
-           
-            let authorization = AUTHORIZATION;
-            let accessToken = await getAccessToken();
-
-            // 2. Create a session token
-            
-            let merchantId = MERCHANTID;
-            let amount = AMOUNT;
-            let session = await getSession(merchantId, accessToken, amount);
-
-            // 3. Configure the web payment button
-
-            let sessionKey = session.sessionKey;
-            let expirationTime = session.expirationTime;
-            let purchasenumber = PURCHASENUMBER;
-
-            openForm(merchantId, sessionKey, expirationTime, amount, purchasenumber);
-
-            // Request recibido en pare response
-            // {"query":{},"body":{"transactionToken":"1F62A94A553242CFA2A94A5532F2CF6E","customerEmail":"akobashikawa@gmail.com","channel":"web"}}
-
-            // 4. Request transaction authorization
-
-
-        };
-
-        // main();
-
-        document.getElementById('input_authorization').value = AUTHORIZATION;
-        document.getElementById('input_merchantid').value = MERCHANTID;
-        document.getElementById('input_purchasenumber').value = PURCHASENUMBER;
-        document.getElementById('input_amount').value = AMOUNT;
-        
-        const btn_pagar = document.getElementById('btn_pagar');
-        btn_pagar.addEventListener('click', async (e) => {
-
-            // 1. Create an access token (Security)
-           
-            let authorization = AUTHORIZATION;
-            let accessToken = await getAccessToken(authorization);
-
-            // 2. Create a session token
-            
-            let merchantId = document.getElementById('input_merchantid').value;
-            let amount = document.getElementById('input_amount').value;
-            let session = await getSession(merchantId, accessToken, amount);
-
-            // 3. Configure the web payment button
-
-            let sessionKey = session.sessionKey;
-            let expirationTime = session.expirationTime;
-            let purchasenumber = document.getElementById('input_purchasenumber').value;
-
-            // abrir el formulario de pago
-            openForm(merchantId, sessionKey, expirationTime, amount, purchasenumber);
-            
-            e.preventDefault();
-        });
-
 
     </script>
 </body>

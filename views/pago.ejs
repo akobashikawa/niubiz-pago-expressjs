@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-Zenh87qX5JnK2Jl0vWa8Ck2rdkQ2Bzep5IDxbcnCeuOxjzrPF/et3URy9Bv1WTRi" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-OERcA2EqjJCMA+/3y+gxIOqMEjwtxJY7qPCqsdltbNJuaOe923+mo//f6V8Qbsw3" crossorigin="anonymous"></script>
+    
+    <title>Pago con Niubiz</title>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Pago con Niubiz</h1>
+
+        <label for="input_authorization">authorization</label>
+        <input class="form-control" placeholder="Código del comercio" id="input_authorization">
+        <br>
+        <label for="input_merchantid">merchantid</label>
+        <input class="form-control" type="text" placeholder="Código del comercio" id="input_merchantid">
+        <br>
+        <label for="input_purchasenumber">purchasenumber</label>
+        <input class="form-control" type="text" placeholder="Orden de compra" id="input_purchasenumber">
+        <br>
+        <label for="input_amount">amount</label>
+        <input class="form-control" type="number" placeholder="Monto S/" id="input_amount">
+        <br>
+        <button class="btn btn-primary" id="btn_pagar">Pagar con Niubiz</button>
+    </div>
+
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://static-content-qas.vnforapps.com/v2/js/checkout.js?qa=true"></script>
+    
+    <script>
+        // Documentación: [Web payment/payment button](https://desarrolladores.niubiz.com.pe/docs/bot%C3%B3n-de-pago-1)
+
+        // CONST
+        ////////
+        const BACKEND_BASE_URL = 'https://rulokoba.me/demo-4200';
+
+        // const AUTHORIZATION = 'aW50ZWdyYWNpb25lc0BuaXViaXouY29tLnBlOl83ejNAOGZG';
+        const AUTHORIZATION = 'Z2lhbmNhZ2FsbGFyZG9AZ21haWwuY29tOkF2MyR0cnV6';
+        // const MERCHANTID = '341198210';
+        const MERCHANTID = '456879852';
+        const PURCHASENUMBER = generatePurchaseNumber();
+        const AMOUNT = 12.3;
+
+        
+
+        // 'PurchaseNumber has to be numeric [max 12 digits].'
+        function generatePurchaseNumber() {
+
+            function xx(n) {
+                return (n < 10) ? ('0' + n) : n;
+            }
+            
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const MM = xx(now.getMonth() + 1);
+            const dd = xx(now.getDate());
+            const hh = xx(now.getHours());
+            const mm = xx(now.getMinutes());
+            const ss = xx(now.getSeconds());
+            return `${yyyy}${MM}${dd}${hh}${mm}${ss}`.substring(2);
+        }
+
+        
+        // LIB
+        //////
+
+        const getAccessToken = async (authorization) => {
+            try {
+                const headers = {
+                    "Authorization": `Basic ${authorization}`
+                };
+
+                const result = await axios.get('https://apisandbox.vnforappstest.com/api.security/v1/security', {headers});
+                // 201
+                console.log(result);
+                accessToken = result.data;
+                console.log('accessToken', accessToken);
+                return accessToken;
+            } catch (error) {
+                // 401
+                console.log(error);
+            }
+        };
+
+        const getSession = async (merchantId, accessToken, amount) => {
+            const body = {
+                "channel": 'web', // default
+                "amount": `${amount}`,
+                // "anti-fraud": {
+                //     "merchantDefineData": {
+                //         "MDD15": "Valor MDD 15",
+                //         "MDD20": "Valor MDD 20",
+                //         "MDD33": "Valor MDD 33"
+                //     }
+                // },
+            };
+
+            let data;
+            let expirationTime, sessionKey;
+
+            try {
+                const headers = {
+                    "Content-Type": 'application/json',
+                    "Authorization": accessToken
+                };
+
+                const result = await axios.post(`https://apisandbox.vnforappstest.com/api.ecommerce/v2/ecommerce/token/session/${merchantId}`, body, {headers});
+                // 200
+                console.log(result);
+                data = result.data;
+                console.log(data);
+                expirationTime = data.expirationTime;
+                sessionKey = data.sessionKey;
+
+                let session = {sessionKey, expirationTime};
+                return session;
+            } catch (error) {
+                // 400, 406
+                console.log(error);
+            }
+        };
+
+        const openForm = (merchantId, sessionKey, expirationTime, amount, purchaseNumber) => {
+            const expirationminutes = Math.round( ( new Date(expirationTime) - new Date().getTime() ) / 1000 / 60);
+            console.log('expirationminutes', expirationminutes);
+
+            VisanetCheckout.configure({
+                // requeridos
+                action: `${BACKEND_BASE_URL}/api/response?purchasenumber=${purchaseNumber}&amount=${amount}`,
+                merchantid: merchantId,
+                sessiontoken: sessionKey,
+                amount: `${amount}`,
+                purchasenumber: purchaseNumber,
+
+                channel:'web',
+                expirationminutes: `${expirationminutes}`,
+                timeouturl: `${BACKEND_BASE_URL}/api/response`,
+                merchantlogo:' img/comercio.png',
+                formbuttoncolor:'#000000',
+
+                complete: function(params) {
+                    console.log(params);
+                    alert(JSON.stringify(params));
+                }
+            });
+            VisanetCheckout.open();
+        };
+
+        const payAuthorization = async (merchantId, tokenId, purchaseNumber, amount) => {
+            const currency = "PEN";
+
+            const body = {
+                "channel": 'web', // default
+                "captureType": 'manual', // siempre
+                "amount": `${amount}`,
+                "currency": `${currency}`,
+                "order" : {
+                    "tokenId": tokenId,
+                    "purchaseNumber": purchaseNumber,
+                }
+            };
+
+            let data;
+
+            try {
+                const headers = {
+                    "Content-Type": 'application/json',
+                    "Authorization": accessToken
+                };
+
+                const result = await axios.post(`https://apisandbox.vnforappstest.com/api.authorization/v3/authorization/ecommerce/${merchantId}`, body, {headers});
+                // 200
+                console.log(result);
+                data = result.data;
+                console.log(data);
+
+                return data;
+            } catch (error) {
+                // 400, 401, 406, 500
+                console.log(error);
+            }
+        };
+
+        
+
+        // MAIN
+        ///////
+
+        main = async () => {
+            // 1. Crear un token de seguridad
+           
+            let authorization = AUTHORIZATION;
+            let accessToken = await getAccessToken();
+
+            // 2. Crear una sesión de comunicación
+            
+            let merchantId = MERCHANTID;
+            let amount = AMOUNT;
+            let session = await getSession(merchantId, accessToken, amount);
+
+            // 3. Configurar un botón de pago
+
+            let sessionKey = session.sessionKey;
+            let expirationTime = session.expirationTime;
+            let purchasenumber = PURCHASENUMBER;
+
+            openForm(merchantId, sessionKey, expirationTime, amount, purchasenumber);
+
+            // Request recibido en pare response
+            // {"query":{},"body":{"transactionToken":"1F62A94A553242CFA2A94A5532F2CF6E","customerEmail":"akobashikawa@gmail.com","channel":"web"}}
+
+            // 4. Solicitar autorización de transacción
+
+            
+
+        };
+
+        // main();
+
+        document.getElementById('input_authorization').value = AUTHORIZATION;
+        document.getElementById('input_merchantid').value = MERCHANTID;
+        document.getElementById('input_purchasenumber').value = PURCHASENUMBER;
+        document.getElementById('input_amount').value = AMOUNT;
+        
+        const btn_pagar = document.getElementById('btn_pagar');
+        btn_pagar.addEventListener('click', async (e) => {
+
+            // 1. Create an access token (Security)
+           
+            let authorization = AUTHORIZATION;
+            let accessToken = await getAccessToken(authorization);
+
+            // 2. Create a session token
+            
+            let merchantId = document.getElementById('input_merchantid').value;
+            let amount = document.getElementById('input_amount').value;
+            let session = await getSession(merchantId, accessToken, amount);
+
+            // 3. Configure the web payment button
+
+            let sessionKey = session.sessionKey;
+            let expirationTime = session.expirationTime;
+            let purchasenumber = document.getElementById('input_purchasenumber').value;
+
+            // abrir el formulario de pago
+            openForm(merchantId, sessionKey, expirationTime, amount, purchasenumber);
+            
+            e.preventDefault();
+        });
+
+
+    </script>
+</body>
+
+</html>

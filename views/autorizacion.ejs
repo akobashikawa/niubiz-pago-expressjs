@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-Zenh87qX5JnK2Jl0vWa8Ck2rdkQ2Bzep5IDxbcnCeuOxjzrPF/et3URy9Bv1WTRi" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-OERcA2EqjJCMA+/3y+gxIOqMEjwtxJY7qPCqsdltbNJuaOe923+mo//f6V8Qbsw3" crossorigin="anonymous"></script>
+
+    <title>Confirmación de Pago con Niubiz</title>
+</head>
+<body>
+    <div class="container">
+        <h1>Confirmación de Pago</h1>
+
+        <div class="card-group mt-4" id="list_productos">
+            <div class="card w-25">
+                <div class="card-body">
+                    <h5 class="card-title"><%= producto.nombre %></h5>
+                    <p class="card-text">Precio: <%= producto.amount %> <%= producto.currency %></p>
+                </div>
+            </div>
+        </div>
+
+        <ul>
+            <li>
+                <strong>transactionToken: </strong>
+                <%= transactionToken %> 
+            </li>
+            <li>
+                <strong>customerEmail: </strong>
+                <%= customerEmail %>
+            </li>
+            <li>
+                <strong>channel: </strong>
+                <%= channel %>
+            </li>
+            <li>
+                <strong>purchaseNumber: </strong>
+                <%= purchaseNumber %>
+            </li>
+            <li>
+                <strong>amount: </strong>
+                <%= amount %>
+            </li>
+            <li>
+                <strong>CARD: </strong>
+                <%= card %>
+                <%= brand %>
+            </li>
+            <li>
+                <strong>STATUS: </strong>
+                <%= status %>
+            </li>
+            <li>
+                <strong>ACTION_DESCRIPTION: </strong>
+                <%= actionDescription %>
+            </li>
+            <li>
+                <strong>TRANSACTION_ID: </strong>
+                <%= transactionId %>
+            </li>
+        </ul>
+
+        <a href="https://rulokoba.me/demo-4200/" class="btn btn-success">Volver a la página de inicio</a>
+    </div>
+</body>
+</html>
